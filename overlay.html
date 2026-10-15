@@ -8,11 +8,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
 <style>
   /*
-    OBS: Browser-Quelle -> Lokale Datei -> diese overlay.html, Breite 1920, Höhe 1080.
+    OBS: Browser-Quelle -> URL oder Lokale Datei, Breite 1920, Höhe 1080.
     Bedienen: Rechtsklick auf die Quelle -> "Interagieren".
-      Klick auf ein Spiel   = nächster Status (offen -> aktiv -> gewonnen -> verloren -> offen)
-      Taste 1-6             = dasselbe per Tastatur
+      Klick auf ein Spiel   = abhaken (nochmal klicken = Haken weg)
+      Taste 1-6             = abhaken per Tastatur
       Shift + R             = alles zurücksetzen
+    Sind alle Spiele abgehakt, erscheint der kleine Eisbär.
   */
   :root {
     --navy:   #0B2A6F;
@@ -105,6 +106,30 @@
   .panel.done .head { background: var(--navy); }
   .panel.done .score { color: var(--sky); }
 
+  /* ---------- Kleiner Eisbär: nur wenn alles geschafft ist ---------- */
+  .winner {
+    display: none;
+    position: absolute;
+    left: calc(100% + 36px);
+    top: 0;
+    width: 132px;
+    height: 132px;
+    background: var(--white);
+    box-shadow:
+      0 -6px 0 0 var(--navy), 0 6px 0 0 var(--navy),
+      -6px 0 0 0 var(--navy), 6px 0 0 0 var(--navy);
+  }
+  .winner img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .panel.done .winner {
+    display: block;
+    animation: arrive .5s steps(5) 1, hop .9s steps(2) .5s infinite;
+  }
+
   /* ---------- Spielzeilen ---------- */
   .rows {
     display: flex;
@@ -128,7 +153,27 @@
       0  4px 0 0 var(--sky),
       -4px 0 0 0 var(--sky),
        4px 0 0 0 var(--sky);
-    transition: transform .18s steps(4), background-color .18s;
+  }
+
+  /* Abhak-Kästchen */
+  .row .box {
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    margin: 4px 8px 4px 4px;
+    background: var(--white);
+    box-shadow:
+      0 -4px 0 0 var(--sky), 0 4px 0 0 var(--sky),
+      -4px 0 0 0 var(--sky), 4px 0 0 0 var(--sky);
+  }
+  .row .box::after {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 5px;
+    height: 5px;
   }
 
   .row .name {
@@ -155,33 +200,16 @@
   }
 
   /* offen */
-  .row[data-state="open"] { background: rgba(255,255,255,.55); color: rgba(11,42,111,.62); box-shadow:
-      0 -4px 0 0 rgba(125,184,255,.6), 0 4px 0 0 rgba(125,184,255,.6),
-      -4px 0 0 0 rgba(125,184,255,.6), 4px 0 0 0 rgba(125,184,255,.6); }
-  .row[data-state="open"] .stamp { color: rgba(11,42,111,.45); }
-
-  /* aktiv */
-  .row[data-state="active"] {
-    transform: translateX(16px);
+  .row[data-state="open"] {
+    background: rgba(255,255,255,.55);
+    color: rgba(11,42,111,.62);
     box-shadow:
-      0 -4px 0 0 var(--cobalt), 0 4px 0 0 var(--cobalt),
-      -4px 0 0 0 var(--cobalt), 4px 0 0 0 var(--cobalt);
+      0 -4px 0 0 rgba(125,184,255,.6), 0 4px 0 0 rgba(125,184,255,.6),
+      -4px 0 0 0 rgba(125,184,255,.6), 4px 0 0 0 rgba(125,184,255,.6);
   }
-  .row[data-state="active"] .stamp { background: var(--cobalt); color: var(--white); }
-  .row .buddy {
-    display: none;
-    position: absolute;
-    right: -104px;
-    top: 50%;
-    width: 84px;
-    height: 84px;
-    margin-top: -42px;
-    object-fit: contain;
-    animation: hop .8s steps(2) infinite;
-  }
-  .row[data-state="active"] .buddy { display: block; }
+  .row[data-state="open"] .box { opacity: .75; }
 
-  /* gewonnen */
+  /* gewonnen / abgehakt */
   .row[data-state="won"] {
     background: var(--cobalt);
     color: var(--white);
@@ -189,14 +217,25 @@
       0 -4px 0 0 var(--navy), 0 4px 0 0 var(--navy),
       -4px 0 0 0 var(--navy), 4px 0 0 0 var(--navy);
   }
-  .row[data-state="won"] .tag { background: var(--navy); color: var(--sky); }
+  .row[data-state="won"] .tag   { background: var(--navy); color: var(--sky); }
   .row[data-state="won"] .stamp { background: var(--white); color: var(--cobalt); }
-
-  /* verloren */
-  .row[data-state="lost"] { background: var(--ice); color: var(--navy); }
-  .row[data-state="lost"] .name { text-decoration: line-through; text-decoration-thickness: 4px; opacity: .6; }
-  .row[data-state="lost"] .tag { opacity: .6; }
-  .row[data-state="lost"] .stamp { background: var(--navy); color: var(--ice); }
+  .row[data-state="won"] .box {
+    box-shadow:
+      0 -4px 0 0 var(--navy), 0 4px 0 0 var(--navy),
+      -4px 0 0 0 var(--navy), 4px 0 0 0 var(--navy);
+  }
+  /* Pixel-Haken */
+  .row[data-state="won"] .box::after {
+    box-shadow:
+      0 15px 0 0 var(--cobalt), 0 20px 0 0 var(--cobalt),
+      5px 20px 0 0 var(--cobalt), 5px 25px 0 0 var(--cobalt),
+      10px 25px 0 0 var(--cobalt), 10px 30px 0 0 var(--cobalt),
+      15px 20px 0 0 var(--cobalt), 15px 25px 0 0 var(--cobalt),
+      20px 15px 0 0 var(--cobalt), 20px 20px 0 0 var(--cobalt),
+      25px 10px 0 0 var(--cobalt), 25px 15px 0 0 var(--cobalt),
+      30px 5px 0 0 var(--cobalt), 30px 10px 0 0 var(--cobalt),
+      35px 0 0 0 var(--cobalt), 35px 5px 0 0 var(--cobalt);
+  }
 
   .stamp.pop { animation: pop .45s steps(5) 1; }
 
@@ -208,10 +247,13 @@
     0%   { transform: scale(2.2) rotate(-8deg); opacity: 0; }
     100% { transform: scale(1)   rotate(0);     opacity: 1; }
   }
+  @keyframes arrive {
+    0%   { transform: scale(0.2); opacity: 0; }
+    100% { transform: scale(1);   opacity: 1; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .row .buddy, .stamp.pop { animation: none; }
-    .row { transition: none; }
+    .panel.done .winner, .stamp.pop { animation: none; }
   }
 </style>
 </head>
@@ -224,6 +266,7 @@
     <div class="score" id="score">0<span>/6</span></div>
   </div>
   <div class="rows" id="rows"></div>
+  <div class="winner"><img src="bear.gif" alt=""></div>
 </div>
 
 <script>
@@ -237,19 +280,21 @@
     { name: 'Geometry Dash', tag: ''    }
   ];
 
-  const STATES = ['open', 'active', 'won', 'lost'];
-  const LABEL  = { open: '', active: 'LÄUFT', won: 'GEWONNEN', lost: 'VERLOREN' };
-  const KEY    = 'win-challenge-v1';
+  const KEY = 'win-challenge-v1';
 
-  let state = GAMES.map(() => 'open');
+  // true = abgehakt
+  let done = GAMES.map(() => false);
 
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
-    if (Array.isArray(saved) && saved.length === GAMES.length) state = saved;
+    // alte Spielstände (Text-Status) werden übernommen: nur "won" zählt als abgehakt
+    if (Array.isArray(saved) && saved.length === GAMES.length) {
+      done = saved.map(s => s === true || s === 'won');
+    }
   } catch (e) { /* kein Speicher verfügbar, startet leer */ }
 
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) {}
   }
 
   const rowsEl = document.getElementById('rows');
@@ -258,54 +303,50 @@
     el.className = 'row';
     el.setAttribute('role', 'button');
     el.innerHTML =
+      '<span class="box"></span>' +
       '<span class="name"></span>' +
       '<span class="tag"></span>' +
-      '<span class="stamp"></span>' +
-      '<img class="buddy" src="bear.gif" alt="">';
+      '<span class="stamp">GEWONNEN</span>';
     el.querySelector('.name').textContent = g.name;
     const tag = el.querySelector('.tag');
     if (g.tag) tag.textContent = g.tag; else tag.remove();
-    el.addEventListener('click', () => advance(i));
+    el.addEventListener('click', () => toggle(i));
     rowsEl.appendChild(el);
     return el;
   });
 
-  function advance(i) {
-    state[i] = STATES[(STATES.indexOf(state[i]) + 1) % STATES.length];
+  function toggle(i) {
+    done[i] = !done[i];
     save();
     render(i);
   }
 
   function render(changed) {
-    state.forEach((s, i) => {
+    done.forEach((isDone, i) => {
       const el = rowEls[i];
-      el.dataset.state = s;
+      el.dataset.state = isDone ? 'won' : 'open';
       const stamp = el.querySelector('.stamp');
-      stamp.textContent = LABEL[s];
-      stamp.style.visibility = s === 'open' ? 'hidden' : 'visible';
-      if (i === changed && (s === 'won' || s === 'lost')) {
+      stamp.style.visibility = isDone ? 'visible' : 'hidden';
+      if (i === changed && isDone) {
         stamp.classList.remove('pop');
         void stamp.offsetWidth;
         stamp.classList.add('pop');
       }
     });
 
-    const wins   = state.filter(s => s === 'won').length;
-    const losses = state.filter(s => s === 'lost').length;
+    const wins = done.filter(Boolean).length;
     document.getElementById('score').innerHTML = wins + '<span>/' + GAMES.length + '</span>';
 
-    const done = wins === GAMES.length;
-    document.getElementById('panel').classList.toggle('done', done);
-    document.getElementById('sub').textContent = done
-      ? 'Geschafft!'
-      : (losses ? 'Alle ' + GAMES.length + ' gewinnen · ' + losses + ' verloren' : 'Alle ' + GAMES.length + ' gewinnen');
+    const all = wins === GAMES.length;
+    document.getElementById('panel').classList.toggle('done', all);
+    document.getElementById('sub').textContent = all ? 'Geschafft!' : 'Alle ' + GAMES.length + ' gewinnen';
   }
 
   document.addEventListener('keydown', (e) => {
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= GAMES.length) advance(n - 1);
+    if (n >= 1 && n <= GAMES.length) toggle(n - 1);
     if (e.key === 'R' && e.shiftKey) {
-      state = GAMES.map(() => 'open');
+      done = GAMES.map(() => false);
       save();
       render();
     }
