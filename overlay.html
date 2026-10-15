@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Win Challenge Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /*
+    OBS: Browser-Quelle -> Lokale Datei -> diese overlay.html, Breite 1920, Höhe 1080.
+    Bedienen: Rechtsklick auf die Quelle -> "Interagieren".
+      Klick auf ein Spiel   = nächster Status (offen -> aktiv -> gewonnen -> verloren -> offen)
+      Taste 1-6             = dasselbe per Tastatur
+      Shift + R             = alles zurücksetzen
+  */
+  :root {
+    --navy:   #0B2A6F;
+    --cobalt: #1F5BFF;
+    --sky:    #7DB8FF;
+    --ice:    #E3F1FF;
+    --white:  #FFFFFF;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    width: 1920px;
+    height: 1080px;
+    background: transparent;
+    overflow: hidden;
+    font-family: 'Pixelify Sans', 'Courier New', monospace;
+    color: var(--navy);
+    user-select: none;
+  }
+
+  /* Pixel-Rahmen: Stufen statt runder Ecken */
+  .px {
+    box-shadow:
+      0 -6px 0 0 var(--navy),
+      0  6px 0 0 var(--navy),
+      -6px 0 0 0 var(--navy),
+       6px 0 0 0 var(--navy);
+  }
+
+  .panel {
+    position: absolute;
+    left: 60px;
+    top: 150px;
+    width: 600px;
+    background: var(--ice);
+    padding: 0 0 24px;
+  }
+
+  /* ---------- Kopfzeile ---------- */
+  .head {
+    position: relative;
+    height: 150px;
+    background: var(--cobalt);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px 0 188px;
+    margin-bottom: 24px;
+  }
+
+  .head .mascot {
+    position: absolute;
+    left: 14px;
+    bottom: 0;
+    width: 150px;
+    height: 150px;
+    image-rendering: pixelated;
+    object-fit: contain;
+    object-position: bottom;
+    transform: translateY(-34px);
+    filter: drop-shadow(6px 0 0 var(--navy)) drop-shadow(-6px 0 0 var(--navy)) drop-shadow(0 -6px 0 var(--navy));
+  }
+
+  .title {
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+
+  .title small {
+    display: block;
+    margin-top: 10px;
+    font-weight: 500;
+    font-size: 22px;
+    color: var(--sky);
+  }
+
+  .score {
+    font-weight: 700;
+    font-size: 78px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .score span { font-size: 40px; color: var(--sky); }
+
+  .panel.done .head { background: var(--navy); }
+  .panel.done .score { color: var(--sky); }
+
+  /* ---------- Spielzeilen ---------- */
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 0 28px;
+  }
+
+  .row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 76px;
+    padding: 0 18px 0 22px;
+    background: var(--white);
+    color: var(--navy);
+    cursor: pointer;
+    box-shadow:
+      0 -4px 0 0 var(--sky),
+      0  4px 0 0 var(--sky),
+      -4px 0 0 0 var(--sky),
+       4px 0 0 0 var(--sky);
+    transition: transform .18s steps(4), background-color .18s;
+  }
+
+  .row .name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 36px;
+    white-space: nowrap;
+  }
+
+  .row .tag {
+    font-weight: 700;
+    font-size: 26px;
+    padding: 2px 12px;
+    background: var(--ice);
+    color: var(--cobalt);
+  }
+
+  .row .stamp {
+    min-width: 128px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 26px;
+    padding: 4px 10px;
+  }
+
+  /* offen */
+  .row[data-state="open"] { background: rgba(255,255,255,.55); color: rgba(11,42,111,.62); box-shadow:
+      0 -4px 0 0 rgba(125,184,255,.6), 0 4px 0 0 rgba(125,184,255,.6),
+      -4px 0 0 0 rgba(125,184,255,.6), 4px 0 0 0 rgba(125,184,255,.6); }
+  .row[data-state="open"] .stamp { color: rgba(11,42,111,.45); }
+
+  /* aktiv */
+  .row[data-state="active"] {
+    transform: translateX(16px);
+    box-shadow:
+      0 -4px 0 0 var(--cobalt), 0 4px 0 0 var(--cobalt),
+      -4px 0 0 0 var(--cobalt), 4px 0 0 0 var(--cobalt);
+  }
+  .row[data-state="active"] .stamp { background: var(--cobalt); color: var(--white); }
+  .row .buddy {
+    display: none;
+    position: absolute;
+    right: -104px;
+    top: 50%;
+    width: 84px;
+    height: 84px;
+    margin-top: -42px;
+    object-fit: contain;
+    animation: hop .8s steps(2) infinite;
+  }
+  .row[data-state="active"] .buddy { display: block; }
+
+  /* gewonnen */
+  .row[data-state="won"] {
+    background: var(--cobalt);
+    color: var(--white);
+    box-shadow:
+      0 -4px 0 0 var(--navy), 0 4px 0 0 var(--navy),
+      -4px 0 0 0 var(--navy), 4px 0 0 0 var(--navy);
+  }
+  .row[data-state="won"] .tag { background: var(--navy); color: var(--sky); }
+  .row[data-state="won"] .stamp { background: var(--white); color: var(--cobalt); }
+
+  /* verloren */
+  .row[data-state="lost"] { background: var(--ice); color: var(--navy); }
+  .row[data-state="lost"] .name { text-decoration: line-through; text-decoration-thickness: 4px; opacity: .6; }
+  .row[data-state="lost"] .tag { opacity: .6; }
+  .row[data-state="lost"] .stamp { background: var(--navy); color: var(--ice); }
+
+  .stamp.pop { animation: pop .45s steps(5) 1; }
+
+  @keyframes hop {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+  @keyframes pop {
+    0%   { transform: scale(2.2) rotate(-8deg); opacity: 0; }
+    100% { transform: scale(1)   rotate(0);     opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row .buddy, .stamp.pop { animation: none; }
+    .row { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="panel px" id="panel">
+  <div class="head">
+    <img class="mascot" src="bear-pixel.png" alt="">
+    <div class="title" id="title">WIN CHALLENGE<small id="sub">Alle 6 gewinnen</small></div>
+    <div class="score" id="score">0<span>/6</span></div>
+  </div>
+  <div class="rows" id="rows"></div>
+</div>
+
+<script>
+  // Spiele hier anpassen: name = Anzeigename, tag = Zusatz (leer lassen für keinen)
+  const GAMES = [
+    { name: 'Schach',        tag: 'b2b' },
+    { name: 'Minecraft',     tag: ''    },
+    { name: 'Valorant',      tag: 'b2b' },
+    { name: 'Fortnite',      tag: 'b3b' },
+    { name: 'GeoGuessr',     tag: '5k'  },
+    { name: 'Geometry Dash', tag: ''    }
+  ];
+
+  const STATES = ['open', 'active', 'won', 'lost'];
+  const LABEL  = { open: '', active: 'LÄUFT', won: 'GEWONNEN', lost: 'VERLOREN' };
+  const KEY    = 'win-challenge-v1';
+
+  let state = GAMES.map(() => 'open');
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (Array.isArray(saved) && saved.length === GAMES.length) state = saved;
+  } catch (e) { /* kein Speicher verfügbar, startet leer */ }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  const rowsEl = document.getElementById('rows');
+  const rowEls = GAMES.map((g, i) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.setAttribute('role', 'button');
+    el.innerHTML =
+      '<span class="name"></span>' +
+      '<span class="tag"></span>' +
+      '<span class="stamp"></span>' +
+      '<img class="buddy" src="bear.gif" alt="">';
+    el.querySelector('.name').textContent = g.name;
+    const tag = el.querySelector('.tag');
+    if (g.tag) tag.textContent = g.tag; else tag.remove();
+    el.addEventListener('click', () => advance(i));
+    rowsEl.appendChild(el);
+    return el;
+  });
+
+  function advance(i) {
+    state[i] = STATES[(STATES.indexOf(state[i]) + 1) % STATES.length];
+    save();
+    render(i);
+  }
+
+  function render(changed) {
+    state.forEach((s, i) => {
+      const el = rowEls[i];
+      el.dataset.state = s;
+      const stamp = el.querySelector('.stamp');
+      stamp.textContent = LABEL[s];
+      stamp.style.visibility = s === 'open' ? 'hidden' : 'visible';
+      if (i === changed && (s === 'won' || s === 'lost')) {
+        stamp.classList.remove('pop');
+        void stamp.offsetWidth;
+        stamp.classList.add('pop');
+      }
+    });
+
+    const wins   = state.filter(s => s === 'won').length;
+    const losses = state.filter(s => s === 'lost').length;
+    document.getElementById('score').innerHTML = wins + '<span>/' + GAMES.length + '</span>';
+
+    const done = wins === GAMES.length;
+    document.getElementById('panel').classList.toggle('done', done);
+    document.getElementById('sub').textContent = done
+      ? 'Geschafft!'
+      : (losses ? 'Alle ' + GAMES.length + ' gewinnen · ' + losses + ' verloren' : 'Alle ' + GAMES.length + ' gewinnen');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= GAMES.length) advance(n - 1);
+    if (e.key === 'R' && e.shiftKey) {
+      state = GAMES.map(() => 'open');
+      save();
+      render();
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
